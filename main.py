@@ -41,3 +41,7 @@ def main(argv):
             router.allInFolder(arg)
         elif opt in ("-a", "--auto"):
             router.autonomousMode()
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

@@ -37,6 +37,3 @@ def autonomousMode():
 
 def searchForAnswers(question, answers):
     handler.answer_question(question, answers)
-
-
-print("Hello world")
