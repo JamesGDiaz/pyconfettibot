@@ -4,22 +4,26 @@ import aiohttp
 from bs4 import BeautifulSoup
 from nltk import word_tokenize
 from nltk.corpus import stopwords
-from nltk.tag.perceptron import PerceptronTagger
+from nltk.tag.stanford import StanfordPOSTagger
 from nltk.tokenize import RegexpTokenizer
 from unidecode import unidecode
 import asyncio
 import logging
+import os
 
 from networking import networking
 
 STOP = set(stopwords.words("spanish")) - {"más", "menos"}
 tokenizer = RegexpTokenizer(r"\w+")
-tagger = PerceptronTagger()
-HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:58.0) Gecko/20100101 Firefox/58.0",
+dirname = os.path.dirname(__file__)
+spanish_postagger = StanfordPOSTagger(
+    os.path.join(dirname, 'models/spanish.tagger'), os.path.join(dirname, 'models/stanford-postagger.jar'), encoding='utf8')
+
+HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:66.0) Gecko/20100101 Firefox/66.0",
            "Accept": "*/*",
            "Accept-Language": "es-MX,es;q=0.5",
            "Accept-Encoding": "gzip, deflate"}
-GOOGLE_URL = "https://www.google.com/search?q={}&ie=utf-8&oe=utf-8&client=firefox-b-1-ab"
+GOOGLE_URL = "https://www.google.com.mx/search?q={}&ie=utf-8&oe=utf-8&client=firefox-b-1-ab"
 
 
 def find_keywords(words):
@@ -32,9 +36,12 @@ def find_keywords(words):
 
 
 def find_nouns(text, num_words, reverse=False):
-    tokens = word_tokenize(text)
-    tags = [tag for tag in tagger.tag(tokens) if tag[1] != "POS"]
-    # print(tags)
+    # manually remove '¿' symbol
+    text = text.replace('¿', '')
+    tokens = word_tokenize(text, language="spanish")
+    print(tokens)
+
+    tags = [tag for tag in spanish_postagger.tag(tokens) if tag[1] != 'POS']
 
     tags = tags[:num_words] if not reverse else tags[-num_words:]
 
@@ -45,15 +52,14 @@ def find_nouns(text, num_words, reverse=False):
         tag_type = tag[1]
         word = tag[0]
 
-        if "NN" not in tag_type and len(consecutive_nouns) > 0:
+        if "nc" not in tag_type and len(consecutive_nouns) > 0:
             nouns.append(" ".join(consecutive_nouns))
             consecutive_nouns = []
-        elif "NN" in tag_type:
+        elif "nc" in tag_type:
             consecutive_nouns.append(word)
 
     if len(consecutive_nouns) > 0:
         nouns.append(" ".join(consecutive_nouns))
-
     return nouns
 
 
@@ -89,13 +95,13 @@ async def search_google(question, num_results):
     # Could use Google's Custom Search API here, limit of 100 queries per day
     # result = service.cse().list(q=question, cx=CSE_ID, num=num_results).execute()
     # return result["items"]
-    page = await networking.get_response(GOOGLE_URL.format(question), timeout=2, myheaders=HEADERS)
+    page = await networking.get_response(GOOGLE_URL.format(question), timeout=4, myheaders=HEADERS)
     return get_google_links(page, num_results)
 
 
 async def multiple_search(questions, num_results):
     queries = list(map(GOOGLE_URL.format, questions))
-    pages = await networking.get_responses(queries, timeout=3, myheaders=HEADERS)
+    pages = await networking.get_responses(queries, timeout=4, myheaders=HEADERS)
     link_list = [get_google_links(page, num_results) for page in pages]
     return link_list
 

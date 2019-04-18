@@ -1,0 +1,4 @@
+Unidecode
+BeautifulSoup
+nltk.corpus.stopwords
+nltk.tag.perceptron.PerceptronTagger

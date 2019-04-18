@@ -5,6 +5,7 @@ from collections import defaultdict
 from unidecode import unidecode
 import colorama
 from colorama import Fore, Back, Style
+import difflib
 
 from solvers import search
 
@@ -18,20 +19,18 @@ punctuation_to_space = str.maketrans(
 
 
 async def answer_question(myquestion, original_answers):
-    # replace accents with htmlcodes
-    #question = unidecode(myquestion)
     question = myquestion
     millisstart = int(round(time.time() * 1000))
 
     answers = []
     for ans in original_answers:
-        #ans = unidecode(ans)
         answers.append(ans.translate(punctuation_to_none))
         answers.append(ans.translate(punctuation_to_space))
         answers.append(unidecode(ans))
+        answers.append(unidecode(ans.translate(punctuation_to_none)))
+        answers.append(unidecode(ans.translate(punctuation_to_space)))
 
     answers = list(dict.fromkeys(answers))
-
     question_lower = question.lower()
 
     reverse = "NO" in question or\
@@ -47,9 +46,10 @@ async def answer_question(myquestion, original_answers):
     question_keywords = search.find_keywords(no_quote)
 
     for quote in quoted:
+        quote = quote.replace('  ', ' ')
         question_keywords[question_keywords.index(
-            "1placeholder1")] = quote.replace(' ', '+')
-    search_results = await search.search_google("+".join(question_keywords), 3)
+            "1placeholder1")] = quote.replace(' ', '+').replace('  ', ' ')
+    search_results = await search.search_google("+".join(question_keywords), 6)
     search_text = [x.translate(punctuation_to_none) for x in await search.get_clean_texts(search_results)]
     best_answer = await __search_method1(search_text, answers, reverse)
     if best_answer == "":
@@ -70,15 +70,19 @@ async def answer_question(myquestion, original_answers):
                 key_nouns.update(search.find_nouns(
                     question, num_words=5, reverse=True))
 
-            key_nouns -= {"type"}
+            key_nouns -= {"tipo"}
 
         # Add consecutive capitalised words (Thanks talentoscope!)
         key_nouns.update(re.findall(r"([A-Z][a-z]+(?=\s[A-Z])(?:\s[A-Z][a-z]+)+)",
                                     " ".join([w for idx, w in enumerate(question.split(" ")) if idx != q_word_location])))
 
         key_nouns = {noun.lower() for noun in key_nouns}
-        print(f"Sustantivos: {key_nouns}")
         proposed_answer = await __search_method3(list(set(question_keywords)), key_nouns, original_answers, reverse)
+
+    # Search proposed answer in original answers list
+    proposed_answer = difflib.get_close_matches(
+        proposed_answer, original_answers, 1)[0]
+
     print(Fore.YELLOW + f"PREGUNTA: {myquestion}")
     print(Fore.GREEN + f"RESPUESTA: {proposed_answer}")
     millisend = int(round(time.time() * 1000))
@@ -147,7 +151,7 @@ async def __search_method3(question_keywords, question_key_nouns, answers, rever
     :return: Answer whose search results contain the most keywords of the question
     """
     print("Running method 3...")
-    search_results = await search.multiple_search(answers, 3)
+    search_results = await search.multiple_search(answers, 5)
     print("Search processed")
     answer_lengths = list(map(len, search_results))
     search_results = itertools.chain.from_iterable(search_results)
@@ -193,8 +197,8 @@ async def __search_method3(question_keywords, question_key_nouns, answers, rever
         # scores in answer_noun_scores_map.items()]))
     # print()
 
-    #print(f"Keyword scores: {keyword_scores}")
-    #print(f"Noun scores: {noun_scores}")
+    # print(f"Keyword scores: {keyword_scores}")
+    # print(f"Noun scores: {noun_scores}")
     if set(noun_scores.values()) != {0}:
         return min(noun_scores, key=noun_scores.get) if reverse else max(noun_scores, key=noun_scores.get)
     if set(keyword_scores.values()) != {0}:
