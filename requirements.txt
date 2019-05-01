@@ -3,6 +3,9 @@ networking
 pytesseract
 numpy
 asyncio
-logging
-cv2
+aiohttp
+unidecode
+python-opencv
+BeautifulSoup
 colorama
+nltk

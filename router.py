@@ -1,5 +1,6 @@
 # this will route the flow of the program to the different modules, manage outputs and so on
 import time
+import asyncio
 from ocr import ocr
 from networking import server
 from question import Question
@@ -14,9 +15,11 @@ def singleFile(filename):
     millisstart = int(round(time.time() * 1000))
     myquestion = ocr.getQuestionfromFilename(filename)
     millisend = int(round(time.time() * 1000))
+    coro = handler.answer_question(
+        myquestion.pregunta, myquestion.respuestas)
     if myquestion.exito:
-        myquestion.posible_respuesta = handler.answer_question(
-            myquestion.pregunta, myquestion.respuestas)
+        myquestion.posible_respuesta = asyncio.get_event_loop().run_until_complete(
+            coro)
         print(Fore.BLUE + f"OCR took {millisend-millisstart}ms\n")
     else:
         print("ERROR")

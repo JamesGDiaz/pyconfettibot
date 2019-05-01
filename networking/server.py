@@ -16,6 +16,9 @@ from solvers import handler
 from ocr import ocr
 
 myquestion = Question(exito=False)
+logger = logging.getLogger('websockets')
+logger.setLevel(logging.INFO)
+logger.addHandler(logging.StreamHandler())
 
 
 async def sendtowebapp(message):
@@ -26,7 +29,7 @@ async def sendtowebapp(message):
         async with websockets.connect(url) as ws_node:
             await ws_node.send(message)
     except Exception:
-        print(f"Error al enviar al servidor en {url}")
+        logger.error(f"Error al enviar al servidor en {url}")
 
 
 class wsMessage:
@@ -58,64 +61,39 @@ def getLocalIp():
 
 
 async def consumer(websocket, data):
-    runocr = True
-
-    millisstart = int(round(time.time() * 1000))
-    print("Datos recibidos!")
-    if runocr:
-        info = f"Procesando datos ({len(data)} bytes)..."
-        await websocket.send(wsMessage(type=wsMessage.Type.INFO, message=info).getJson())
-        print(info)
-        try:
-            image = ocr.binarystring2image(data)
-            myquestion = ocr.runOcr(image)
-            pregunta = wsMessage(type=wsMessage.Type.QUESTION,
-                                 message=myquestion.pregunta).getJson()
-            await sendtowebapp(pregunta)
-            myquestion.posible_respuesta = await handler.answer_question(myquestion.pregunta, myquestion.respuestas)
-            mymessage = wsMessage(type=wsMessage.Type.ANSWER,
-                                  message=myquestion.getAnswer()).getJson()
-            await sendtowebapp(mymessage)
-        except:
-            e = sys.exc_info()
-            print(e)
-            await sendtowebapp(wsMessage(type=wsMessage.Type.INFO, message="Hubo un error al procesar la pregunta :(").getJson())
-    else:
-        jsondata = json.loads(data)
-        myquestion = Question(
-            jsondata['exito'], jsondata['pregunta'], jsondata['respuesta1'], jsondata['respuesta2'], jsondata['respuesta3'])
-        print(myquestion.getPretty())
+    Tstart = int(round(time.time() * 1000))
+    logger.info("Datos recibidos!")
+    info = f"Procesando datos ({len(data)} bytes)..."
+    logger.info(info)
+    try:
+        image = ocr.binarystring2image(data)
+        myquestion = ocr.runOcr(image)
         pregunta = wsMessage(type=wsMessage.Type.QUESTION,
                              message=myquestion.pregunta).getJson()
-        await sendtowebapp(pregunta)
+        await websocket.send(pregunta)
         myquestion.posible_respuesta = await handler.answer_question(myquestion.pregunta, myquestion.respuestas)
-        respuesta = wsMessage(type=wsMessage.Type.ANSWER,
-                              message=myquestion.getAnswer()).getJson()
-        await sendtowebapp(respuesta)
-
-    millisend = int(round(time.time() * 1000))
-    await sendtowebapp(wsMessage(type=wsMessage.Type.INFO,
-                                 message=f"Esta búsqueda tardó {(millisend-millisstart)/1000} segundos").getJson())
-    print(f"WebSocket took {millisend-millisstart}ms")
+        myanswer = wsMessage(type=wsMessage.Type.ANSWER,
+                             message=myquestion.getAnswer()).getJson()
+        await websocket.send(myanswer)
+        Tend = int(round(time.time() * 1000))
+        await websocket.send(wsMessage(type=wsMessage.Type.INFO, message=f"Esta búsqueda tardó {(Tend-Tstart)/1000} segundos").getJson())
+    except:
+        e = sys.exc_info()
+        logger.error(e)
 
 
 async def consumer_handler(websocket, path):
-    print("Conexion realizada. Esperando datos")
+    logger.info("Conexion realizada. Esperando datos")
     async for data in websocket:
         await consumer(websocket, data)
 
 
 def startserver():
-    localip = getLocalIp()
+    localip = "localhost"  # getLocalIp()
     port = 19010
-    print(f"Esperando conexion en 'ws://{localip}:{port}'...")
+    logger.info(f"Esperando conexion en 'ws://{localip}:{port}'...")
     coro = websockets.serve(
         consumer_handler, localip, port, max_size=524288)
     asyncio.get_event_loop().run_until_complete(
         coro)
     asyncio.get_event_loop().run_forever()
-
-
-logger = logging.getLogger('websockets')
-logger.setLevel(logging.INFO)
-logger.addHandler(logging.StreamHandler())
