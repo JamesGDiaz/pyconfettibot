@@ -1,6 +1,8 @@
 # this will route the flow of the program to the different modules, manage outputs and so on
 import time
 import asyncio
+import daemon
+
 from ocr import ocr
 from networking import server
 from question import Question
@@ -35,7 +37,11 @@ def allInFolder(path):
 
 def autonomousMode():
     print("\nconfettibot: modo autonomo\n")
-    server.startserver()
+    print("Iniciando daemon...")
+    fstdout = open("pyconfettibot-out.log", "a")
+    fstderr = open("pyconfettibot-error.log", "a")
+    with daemon.DaemonContext(stdout=fstdout, stderr=fstderr):
+        server.startserver()
 
 
 def searchForAnswers(question, answers):

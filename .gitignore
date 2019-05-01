@@ -1,6 +1,10 @@
 /testimages/hd
 /.vscode
-__pycache__/
+__pycache__/*
 */__pycache__
 *.py[cod]
 *$py.class
+pyconfettibot-error.log
+pyconfettibot-out.log
+*.pyc
+networking/__pycache__/server.cpython-37.pyc

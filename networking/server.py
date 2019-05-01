@@ -29,7 +29,7 @@ async def sendtowebapp(message):
         async with websockets.connect(url) as ws_node:
             await ws_node.send(message)
     except Exception:
-        logger.error(f"Error al enviar al servidor en {url}")
+        print(f"Error al enviar al servidor en {url}")
 
 
 class wsMessage:
@@ -62,9 +62,9 @@ def getLocalIp():
 
 async def consumer(websocket, data):
     Tstart = int(round(time.time() * 1000))
-    logger.info("Datos recibidos!")
+    print("Datos recibidos!")
     info = f"Procesando datos ({len(data)} bytes)..."
-    logger.info(info)
+    print(info)
     try:
         image = ocr.binarystring2image(data)
         myquestion = ocr.runOcr(image)
@@ -79,11 +79,11 @@ async def consumer(websocket, data):
         await websocket.send(wsMessage(type=wsMessage.Type.INFO, message=f"Esta búsqueda tardó {(Tend-Tstart)/1000} segundos").getJson())
     except:
         e = sys.exc_info()
-        logger.error(e)
+        print(e)
 
 
 async def consumer_handler(websocket, path):
-    logger.info("Conexion realizada. Esperando datos")
+    print("Conexion realizada. Esperando datos")
     async for data in websocket:
         await consumer(websocket, data)
 
@@ -91,7 +91,7 @@ async def consumer_handler(websocket, path):
 def startserver():
     localip = "localhost"  # getLocalIp()
     port = 19010
-    logger.info(f"Esperando conexion en 'ws://{localip}:{port}'...")
+    print(f"Esperando conexion en 'ws://{localip}:{port}'...")
     coro = websockets.serve(
         consumer_handler, localip, port, max_size=524288)
     asyncio.get_event_loop().run_until_complete(
