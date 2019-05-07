@@ -44,7 +44,7 @@ def main(argv):
         elif opt in ("-a", "--auto"):
             router.autonomousMode()
         elif opt in ("-d", "--daemon"):
-            router.autonomousMode()
+            router.daemonMode()
         elif opt == "--write-json":
             router.writeToFile(arg)
         elif opt == "--read-json":
