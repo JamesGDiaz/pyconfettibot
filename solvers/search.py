@@ -45,14 +45,13 @@ def find_nouns(text, num_words, reverse=False):
 
     #tags = tags[:num_words] if not reverse else tags[-num_words:]
 
-    print(f"{tags}")
+    # print(f"{tags}")
     nouns = []
     consecutive_nouns = []
 
     for tag in tags:
         tag_type = tag[1]
         word = tag[0]
-
         if "nc" not in tag_type or "np" not in tag_type and len(consecutive_nouns) > 0:
             nouns.append(" ".join(consecutive_nouns))
             consecutive_nouns = []

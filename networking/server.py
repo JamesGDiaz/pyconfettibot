@@ -6,7 +6,7 @@ import asyncio
 import logging
 import cv2
 import numpy as np
-import socket
+
 import enum
 import ssl
 import pathlib
@@ -48,18 +48,6 @@ class wsMessage:
         self.message = message
 
 
-def getLocalIp():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        s.connect(('10.255.255.255', 1))
-        IP = s.getsockname()[0]
-    except:
-        IP = '127.0.0.1'
-    finally:
-        s.close()
-    return IP
-
-
 async def consumer(websocket, data):
     Tstart = int(round(time.time() * 1000))
     print("Datos recibidos!")
@@ -88,8 +76,7 @@ async def consumer_handler(websocket, path):
         await consumer(websocket, data)
 
 
-def startserver():
-    localip = "127.0.0.1"  # getLocalIp()
+def startserver(localip):
     port = 19010
     print(f"Esperando conexion en 'ws://{localip}:{port}'...")
     coro = websockets.serve(

@@ -14,7 +14,9 @@ def printhelp():
             '\n    -i ARCHIVO' +
             '\n       --ifile=ARCHIVO            Analiza el archivo en busca de respuestas' +
             '\n    --inputfolder=CARPETA         Analiza todos los archivos en la carpeta' +
-            '\n    -a, --auto                    Modo autonomo')
+            '\n    -a, --auto                    Modo autonomo' +
+            '\n    --write-json=CARPETA         Analiza todos los archivos en la carpeta y guarda los datos en un archivo JSON' +
+            '\n    --inputfolder=ARCHIVO         Analiza estadisticamente el archivo JSON senalado')
     print(help)
     sys.exit()
 
@@ -23,7 +25,7 @@ def main(argv):
     print("Bienvenido al confettibot!")
     try:
         opts, args = getopt.getopt(
-            argv, "hai:", ["help", "ifile=", "auto", "inputfolder="])
+            argv, "hadis:", ["help", "ifile=", "auto", "daemon", "inputfolder=", "write-json=", "read-json="])
     except getopt.GetoptError:
         printhelp()
 
@@ -41,6 +43,12 @@ def main(argv):
             router.allInFolder(arg)
         elif opt in ("-a", "--auto"):
             router.autonomousMode()
+        elif opt in ("-d", "--daemon"):
+            router.autonomousMode()
+        elif opt == "--write-json":
+            router.writeToFile(arg)
+        elif opt == "--read-json":
+            router.analyzeJSONFile(arg)
 
 
 if __name__ == "__main__":

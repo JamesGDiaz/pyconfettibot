@@ -17,7 +17,7 @@ from question import Question
 def base64toimage(uri):
     encoded_data = uri.split(',')[1]
     nparr = np.fromstring(base64.b64decode(encoded_data), np.uint8)
-    image = cv2.imdecode(nparr)
+    image = cv2.imdecode(nparr, cv2.IMREAD_GRAYSCALE)
     return image
 
 
@@ -30,7 +30,7 @@ def binarystring2image(data):
 def filename2cv2image(filename):
     # load the image
     filename = filename.strip()
-    image = cv2.imread(filename)
+    image = cv2.imread(filename, cv2.IMREAD_GRAYSCALE)
     return image
 
 

@@ -8,7 +8,9 @@ class Question:
         self.exito = exito
         self.pregunta = pregunta
         self.respuestas = [respuesta1, respuesta2, respuesta3]
-        self.posible_respuesta = ''
+        self.respuestaPropuesta = None
+        self.respuestaCorrecta = None
+        self.searchTime: None
 
     def getDict(self):
         preguntadict = {
@@ -20,13 +22,15 @@ class Question:
                 '2': self.respuestas[1],
                 '3': self.respuestas[2]
             }],
-            'posible_respuesta': self.posible_respuesta,
+            'respuestaPropuesta': self.respuestaPropuesta,
+            'respuestaCorrecta': self.respuestaCorrecta,
+            'searchTime': self.searchTime
         }
         return preguntadict
 
     # returns a JSON formatted version of the question data
     def getJson(self):
-        return json.dumps(self.getDict(), indent=4)
+        return json.dumps(self.getDict())
 
     # returns a human readable version of the question data
     def getPretty(self):
@@ -40,6 +44,6 @@ class Question:
 
     def getAnswer(self):
         if self.exito:
-            return self.posible_respuesta
+            return self.respuestaPropuesta
         else:
             return "Sin respuesta :("
