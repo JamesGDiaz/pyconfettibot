@@ -59,7 +59,7 @@ async def consumer(websocket, data):
         pregunta = wsMessage(type=wsMessage.Type.QUESTION,
                              message=myquestion.pregunta).getJson()
         await websocket.send(pregunta)
-        myquestion.posible_respuesta = await handler.answer_question(myquestion.pregunta, myquestion.respuestas)
+        myquestion.respuestaPropuesta = await handler.answer_question(myquestion.pregunta, myquestion.respuestas)
         myanswer = wsMessage(type=wsMessage.Type.ANSWER,
                              message=myquestion.getAnswer()).getJson()
         await websocket.send(myanswer)

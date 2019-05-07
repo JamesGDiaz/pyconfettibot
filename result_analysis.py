@@ -9,6 +9,7 @@ from question import Question
 import router
 import datetime
 import statistics as stats
+from fuzzywuzzy import fuzz
 
 
 def writeJSONFile(path):
@@ -25,10 +26,11 @@ def writeJSONFile(path):
         count += 1
         print(f"\nPregunta {count}/{len(n)}")
         thisquestion = router.singleFile(join(path, imagelist[everything[i]]))
-        print(
-            f"Cual es la respuesta correcta?\n  1) {thisquestion.getDict()['respuestas'][0]['1']}\n  2) {thisquestion.getDict()['respuestas'][0]['2']}\n  3) {thisquestion.getDict()['respuestas'][0]['3']}")
+
+        #print(f"Cual es la respuesta correcta?\n  1) {thisquestion.getDict()['respuestas'][0]['1']}\n  2) {thisquestion.getDict()['respuestas'][0]['2']}\n  3) {thisquestion.getDict()['respuestas'][0]['3']}")
         #correct_answer_num = input()
         #thisquestion.respuestaCorrecta = thisquestion.getDict()['respuestas'][0][correct_answer_num]
+
         if i <= max(n)-1:
             output += (thisquestion.getJson() + ",")
         else:
@@ -48,8 +50,12 @@ def writeJSONFile(path):
 
 def analyzeJSONFile(path):
     outputjson = ""
+    correctAnswersDict = ""
     with open(path, "r") as f:
         outputjson = json.load(f)
+    with open("./correctAnswers.json", "r") as fp:
+        correctAnswersDict = json.load(fp)
+
     averageSearchTime = 0
     searchTimes = []
     objectCount = len(outputjson)
@@ -60,7 +66,10 @@ def analyzeJSONFile(path):
             succesCount += 1
             averageSearchTime += question['searchTime']
             searchTimes.append(question['searchTime'])
-            if question['respuestaPropuesta'] == question['respuestaCorrecta']:
+            question_match = findInDict(
+                correctAnswersDict, question['pregunta'])
+            question['respuestaCorrecta'] = question_match['respuestaCorrecta']
+            if fuzz.ratio(question['respuestaPropuesta'], question['respuestaCorrecta']) > 70:
                 correctAnswerCount += 1
     print(
         "\nResultados\n" +
@@ -69,3 +78,10 @@ def analyzeJSONFile(path):
         f"Respuestas correctas: {round(100*correctAnswerCount/objectCount,3)}% ({correctAnswerCount}/{objectCount})\n" +
         f"Tiempos de busqueda: \n\tPromedio: {round(stats.mean(searchTimes),2)}ms" +
         f"\n\tMaximo: {max(searchTimes)}ms\n\tMinimo: {min(searchTimes)}ms\n\tMediana: {stats.median(searchTimes)}ms\n\tsigma: {round(stats.pstdev(searchTimes),0)}ms")
+
+
+def findInDict(jsonarray, query):
+    for obj in jsonarray:
+        ratio = fuzz.ratio(query, obj['pregunta'])
+        if ratio > 85:
+            return obj
