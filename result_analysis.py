@@ -27,9 +27,8 @@ def writeJSONFile(path):
         thisquestion = router.singleFile(join(path, imagelist[everything[i]]))
         print(
             f"Cual es la respuesta correcta?\n  1) {thisquestion.getDict()['respuestas'][0]['1']}\n  2) {thisquestion.getDict()['respuestas'][0]['2']}\n  3) {thisquestion.getDict()['respuestas'][0]['3']}")
-        correct_answer_num = input()
-        thisquestion.respuestaCorrecta = thisquestion.getDict()[
-            'respuestas'][0][correct_answer_num]
+        #correct_answer_num = input()
+        #thisquestion.respuestaCorrecta = thisquestion.getDict()['respuestas'][0][correct_answer_num]
         if i <= max(n)-1:
             output += (thisquestion.getJson() + ",")
         else:
