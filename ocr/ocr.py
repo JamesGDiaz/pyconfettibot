@@ -6,7 +6,7 @@ import cv2
 from PIL import Image
 from math import ceil, floor
 import time
-import numpy
+import numpy as np
 import base64
 import colorama
 from colorama import Fore, Back, Style
@@ -16,13 +16,13 @@ from question import Question
 
 def base64toimage(uri):
     encoded_data = uri.split(',')[1]
-    nparr = numpy.fromstring(base64.b64decode(encoded_data), numpy.uint8)
+    nparr = np.fromstring(base64.b64decode(encoded_data), np.uint8)
     image = cv2.imdecode(nparr)
     return image
 
 
 def binarystring2image(data):
-    nparr = numpy.frombuffer(data, dtype=numpy.int8)
+    nparr = np.frombuffer(data, dtype=np.int8)
     image = cv2.imdecode(nparr, cv2.IMREAD_GRAYSCALE)
     return image
 
@@ -36,26 +36,22 @@ def filename2cv2image(filename):
 
 def runOcr(image, crop=False):
     tstart = int(round(time.time() * 1000))
-    scale = 0.7
-    width = int(image.shape[1] * scale)
-    height = int(image.shape[0] * scale)
-    dim = (width, height)
-    image = cv2.resize(image, dim, interpolation=cv2.INTER_LINEAR)
+
+    image = preprocess(image)
     #cv2.imshow('image', image)
     # cv2.waitKey(0)
+
     # crop the image if it comes fullsize, the question box is around 58% of the height of the screen
     if crop:
         starty = floor(image.shape[0]*0.58)
         image = image[starty: image.shape[0], 0: image.shape[1]]
 
     # crop the question
-    # around 34% of this box is where the division between question and answers is
+    # around 34% of the height of this box is the division between question and answers
     y = floor(image.shape[0] * 0.34)
     question_box = image[0:y, 0: image.shape[1]]
     # crop and preprocess the answers
     answers_box = image[y: image.shape[0], 0: image.shape[1]]
-    #answers_box = preprocess(answers_box)
-    # OCR the cropped image
     ocr_pregunta = pytesseract.image_to_string(
         question_box, 'spa', nice=-19)  # spanish
     ocr_respuestas = pytesseract.image_to_string(
@@ -92,18 +88,18 @@ def getQuestionfromBase64String(uri):
 
 
 def preprocess(image):
-    #cv2.imshow('image', image)
-    maxIntensity = 255.0  # depends on dtype of image data
+    # crop the image horizontally
+    endx = floor(image.shape[1]*0.97)
+    image = image[0: image.shape[0], 0: endx]
 
-    # Parameters for manipulating image data
-    phi = 1
-    theta = 1
-
-    # Increase intensity such that
-    # dark pixels become much brighter,
-    # bright pixels become slightly bright
-    contrastedimage = (maxIntensity/phi)*(image/(maxIntensity/theta))**0.8
-    contrastedimage = numpy.array(contrastedimage, dtype=numpy.int8)
-    #cv2.imshow('image contrasted', contrastedimage)
+    scale = 0.8
+    width = int(image.shape[1] * scale)
+    height = int(image.shape[0] * scale)
+    dim = (width, height)
+    image = cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
+    ret, thresh1 = cv2.threshold(image, 127, 255, cv2.THRESH_BINARY)
+    preprocessimg = cv2.GaussianBlur(thresh1, (3, 3), 0)
+    # cv2.imshow('image', image)
+    # cv2.imshow('preproc', preprocessimg)
     # cv2.waitKey(0)
-    return contrastedimage
+    return preprocessimg

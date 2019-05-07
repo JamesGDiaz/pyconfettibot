@@ -10,9 +10,9 @@ import difflib
 from solvers import search
 
 punctuation_to_none = str.maketrans(
-    {key: None for key in "¡!\"#$%&\'()*+,-.:;<=>¿?@[\\]^_`{|}~�"})
+    {key: None for key in "¡!\"#$%&'()*+,-.:;<=>¿?@[\\]^_`{|}~�"})
 punctuation_to_space = str.maketrans(
-    {key: " " for key in "¡!\"#$%&\'()*+,-.:;<=>¿?@[\\]^_`{|}~�"})
+    {key: " " for key in "¡!\"#$%&'()*+,-.:;<=>¿?@[\\]^_`{|}~�"})
 
 # TODO: Metodo 0 de busqueda directa en la pagina de resultados de google
 #      tal vez busqueda en twitter y/o bing
@@ -24,18 +24,14 @@ async def answer_question(myquestion, original_answers):
 
     answers = []
     for ans in original_answers:
-        answers.append(ans.translate(punctuation_to_none))
-        answers.append(ans.translate(punctuation_to_space))
-        answers.append(unidecode(ans))
-        answers.append(unidecode(ans.translate(punctuation_to_none)))
+        # answers.append(unidecode(ans.translate(punctuation_to_none)))
         answers.append(unidecode(ans.translate(punctuation_to_space)))
 
     answers = list(dict.fromkeys(answers))
     question_lower = question.lower()
 
-    reverse = "NO" in question or\
-        ("menos" in question_lower and "al menos" not in question_lower) or\
-        "NUNCA" in question
+    reverse = "NO" in question or "NUNCA" in question
+    # ("menos" in question_lower and "al menos" not in question_lower) or\
 
     # Get all words in quotes
     quoted = re.findall(r'"([^"]*)"', question_lower)
@@ -49,45 +45,42 @@ async def answer_question(myquestion, original_answers):
         quote = quote.replace('  ', ' ')
         question_keywords[question_keywords.index(
             "1placeholder1")] = quote.replace(' ', '+').replace('  ', ' ')
-    search_results = await search.search_google("+".join(question_keywords), 6)
+    search_results = await search.search_google("+".join(question_keywords), 5)
     search_text = [x.translate(punctuation_to_none) for x in await search.get_clean_texts(search_results)]
     best_answer = await __search_method1(search_text, answers, reverse)
     if best_answer == "":
         best_answer = await __search_method2(search_text, answers, reverse)
-
-    proposed_answer = ""
-    if best_answer != "":
-        proposed_answer = best_answer
-    else:
+    # best_answer = ""  # REMOVE QUICKLY
+    if best_answer == "":
         # Get key nouns for Method 3
         key_nouns = set(quoted)
 
         q_word_location = search.find_q_word_location(question_lower)
         if len(key_nouns) == 0:
             if q_word_location > len(question) // 2 or q_word_location == -1:
-                key_nouns.update(search.find_nouns(question, num_words=5))
+                key_nouns.update(search.find_nouns(question, num_words=8))
             else:
                 key_nouns.update(search.find_nouns(
-                    question, num_words=5, reverse=True))
-
-            key_nouns -= {"tipo"}
+                    question, num_words=6, reverse=True))
 
         # Add consecutive capitalised words (Thanks talentoscope!)
         key_nouns.update(re.findall(r"([A-Z][a-z]+(?=\s[A-Z])(?:\s[A-Z][a-z]+)+)",
                                     " ".join([w for idx, w in enumerate(question.split(" ")) if idx != q_word_location])))
 
         key_nouns = {noun.lower() for noun in key_nouns}
-        proposed_answer = await __search_method3(list(set(question_keywords)), key_nouns, original_answers, reverse)
+        #print("keynouns: ")
+        # print(key_nouns)
+        best_answer = await __search_method3(list(set(question_keywords)), key_nouns, original_answers, reverse)
 
     # Search proposed answer in original answers list
-    proposed_answer = difflib.get_close_matches(
-        proposed_answer, original_answers, 1)[0]
+    best_answer = difflib.get_close_matches(
+        best_answer, original_answers, 1, 0.7)[0]
 
     print(Fore.YELLOW + f"PREGUNTA: {myquestion}")
-    print(Fore.GREEN + f"RESPUESTA: {proposed_answer}")
+    print(Fore.GREEN + f"RESPUESTA: {best_answer}")
     millisend = int(round(time.time() * 1000))
     print(Fore.BLUE + f"Search took {millisend-millisstart}ms")
-    return proposed_answer
+    return best_answer
 
 
 async def __search_method1(texts, answers, reverse):
@@ -105,12 +98,23 @@ async def __search_method1(texts, answers, reverse):
         for answer in counts:
             counts[answer] += len(re.findall(f" {answer} ", text))
 
-    # print(counts)
+    print(counts)
 
-    # If not all answers have count of 0 and the best value doesn't occur more than once, return the best answer
+    # If not all answers have count of 0 and the best value doesn't occur more than once and delta is less than 3 between the top 2 best values, return the best answer
     best_value = min(counts.values()) if reverse else max(counts.values())
-    if not all(c == 0 for c in counts.values()) and list(counts.values()).count(best_value) == 1:
-        return min(counts, key=counts.get) if reverse else max(counts, key=counts.get)
+    best_key = min(counts, key=counts.get) if reverse else max(
+        counts, key=counts.get)
+    counts2ndbest = counts.copy()
+    counts2ndbest.pop(best_key, None)
+    second_best_value = min(counts2ndbest.values()
+                            ) if reverse else max(counts2ndbest.values())
+    delta = (second_best_value -
+             best_value) if reverse else (best_value-second_best_value)
+
+    if not all(c == 0 for c in counts.values()) and list(counts.values()).count(best_value) == 1 and delta >= 3:
+        best_answer = min(counts, key=counts.get) if reverse else max(
+            counts, key=counts.get)
+        return best_answer
     return ""
 
 
@@ -120,7 +124,7 @@ async def __search_method2(texts, answers, reverse):
     :param texts: List of text to analyze
     :param answers: List of answers
     :param reverse: True if the best answer occurs the least, False otherwise
-    :return: Answer whose keywords occur most/least in the texts
+    :return: Answer whose keywords occur most/least in the texts with a difference of at least 3 with the second best one
     """
     print("Running method 2...")
     counts = {answer: {keyword: 0 for keyword in search.find_keywords(
@@ -132,11 +136,25 @@ async def __search_method2(texts, answers, reverse):
                 keyword_counts[keyword] += len(
                     re.findall(f" {keyword} ", text))
 
-    # print(counts)
     counts_sum = {answer: sum(keyword_counts.values())
                   for answer, keyword_counts in counts.items()}
+    print(counts_sum)
+    best_value = min(counts_sum.values()) if reverse else max(
+        counts_sum.values())
+    best_key = min(counts_sum, key=counts_sum.get) if reverse else max(
+        counts_sum, key=counts_sum.get)
+    counts_sum_2nd_best = counts_sum.copy()
+    counts_sum_2nd_best.pop(best_key, None)
 
-    if not all(c == 0 for c in counts_sum.values()):
+    second_best_value = min(counts_sum_2nd_best.values()
+                            ) if reverse else max(counts_sum_2nd_best.values())
+
+    delta = (second_best_value -
+             best_value) if reverse else (best_value-second_best_value)
+
+    second_best_key = min(counts_sum_2nd_best, key=counts_sum_2nd_best.get) if reverse else max(
+        counts_sum_2nd_best, key=counts_sum_2nd_best.get)
+    if not all(c == 0 for c in counts_sum.values()) and list(counts_sum.values()).count(best_value) == 1 and delta >= 2:
         return min(counts_sum, key=counts_sum.get) if reverse else max(counts_sum, key=counts_sum.get)
     return ""
 
@@ -151,7 +169,7 @@ async def __search_method3(question_keywords, question_key_nouns, answers, rever
     :return: Answer whose search results contain the most keywords of the question
     """
     print("Running method 3...")
-    search_results = await search.multiple_search(answers, 5)
+    search_results = await search.multiple_search(answers, 4)
     print("Search processed")
     answer_lengths = list(map(len, search_results))
     search_results = itertools.chain.from_iterable(search_results)
@@ -195,11 +213,12 @@ async def __search_method3(question_keywords, question_key_nouns, answers, rever
     # print()
     # print("\n".join([f"{answer}: {dict(scores)}" for answer,
         # scores in answer_noun_scores_map.items()]))
-    # print()
 
-    # print(f"Keyword scores: {keyword_scores}")
-    # print(f"Noun scores: {noun_scores}")
-    if set(noun_scores.values()) != {0}:
+    print(f"Keyword scores: {keyword_scores}")
+    print(f"Noun scores: {noun_scores}")
+    best_noun_value = min(
+        noun_scores.values()) if reverse else max(noun_scores.values())
+    if set(noun_scores.values()) != {0} and list(noun_scores.values()).count(best_noun_value) == 1:
         return min(noun_scores, key=noun_scores.get) if reverse else max(noun_scores, key=noun_scores.get)
     if set(keyword_scores.values()) != {0}:
         return min(keyword_scores, key=keyword_scores.get) if reverse else max(keyword_scores, key=keyword_scores.get)

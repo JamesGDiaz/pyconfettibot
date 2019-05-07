@@ -89,7 +89,7 @@ async def consumer_handler(websocket, path):
 
 
 def startserver():
-    localip = "localhost"  # getLocalIp()
+    localip = "127.0.0.1"  # getLocalIp()
     port = 19010
     print(f"Esperando conexion en 'ws://{localip}:{port}'...")
     coro = websockets.serve(

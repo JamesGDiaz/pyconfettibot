@@ -42,6 +42,7 @@ def autonomousMode():
     fstderr = open("pyconfettibot-error.log", "a")
     with daemon.DaemonContext(stdout=fstdout, stderr=fstderr):
         server.startserver()
+    # server.startserver()
 
 
 def searchForAnswers(question, answers):
