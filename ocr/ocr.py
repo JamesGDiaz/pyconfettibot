@@ -38,8 +38,6 @@ def runOcr(image, crop=False):
     tstart = int(round(time.time() * 1000))
 
     image = preprocess(image)
-    #cv2.imshow('image', image)
-    # cv2.waitKey(0)
 
     # crop the image if it comes fullsize, the question box is around 58% of the height of the screen
     if crop:
@@ -50,20 +48,27 @@ def runOcr(image, crop=False):
     # around 34% of the height of this box is the division between question and answers
     y = floor(image.shape[0] * 0.34)
     question_box = image[0:y, 0: image.shape[1]]
-    # crop and preprocess the answers
+    # crop the answers
     answers_box = image[y: image.shape[0], 0: image.shape[1]]
     ocr_pregunta = pytesseract.image_to_string(
         question_box, 'spa', nice=-19)  # spanish
     ocr_respuestas = pytesseract.image_to_string(
         answers_box, 'spa', nice=-19)  # spanish
+
     try:
         ocr_pregunta = ocr_pregunta.replace('\n', ' ').replace('|', '')
-
         ocr_respuestas = ocr_respuestas.replace('\n\n', '\n')
         myquestion = Question(True, ocr_pregunta, ocr_respuestas.splitlines()[
             0], ocr_respuestas.splitlines()[1], ocr_respuestas.splitlines()[2])
     except:
         myquestion = Question(exito=False)
+    if myquestion.exito is False:  # OCR most likely failed due to answers being only 1 or 2 characters long, trying to recongnize them this way
+        answers = recognizeSingleCharacter(answers_box)
+        if answers:
+            myquestion = Question(True, ocr_pregunta,
+                                  answers[0], answers[1], answers[2])
+        else:
+            myquestion = Question(exito=False)
     tend = int(round(time.time() * 1000))
     print(Fore.BLUE + f"OCR took {tend-tstart}ms")
     return myquestion
@@ -103,3 +108,23 @@ def preprocess(image):
     # cv2.imshow('preproc', preprocessimg)
     # cv2.waitKey(0)
     return preprocessimg
+
+
+def recognizeSingleCharacter(answers_box):
+    answerbox1 = answers_box[0: floor(answers_box.shape[0]*0.317),
+                             20: floor(answers_box.shape[1]*0.22)]
+    answerbox2 = answers_box[floor(answers_box.shape[0]*0.317):floor(answers_box.shape[0] * 0.647),
+                             20: floor(answers_box.shape[1]*0.22)]
+    answerbox3 = answers_box[floor(answers_box.shape[0] * 0.647): floor(answers_box.shape[0]*0.91),
+                             20: floor(answers_box.shape[1]*0.22)]
+    try:
+        answer1 = pytesseract.image_to_string(
+            answerbox1,  config='--psm 10', nice=-19)  # try with single character mode
+        answer2 = pytesseract.image_to_string(
+            answerbox2,  config='--psm 10', nice=-19)  # try with single character mode
+        answer3 = pytesseract.image_to_string(
+            answerbox3, config='--psm 10', nice=-19)  # try with single character mode
+        answers = [answer1, answer2, answer3]
+        return answers
+    except:
+        return None
